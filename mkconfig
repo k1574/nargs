@@ -1,0 +1,5 @@
+<$MKINCDIR/config
+PROGNAME = nargs
+CFILES = main.c
+INCS = -I$INCDIR
+

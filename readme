@@ -1,0 +1,7 @@
+# nargs
+
+Execute program with parameteres from standard input
+without bufferization.
+
+Right now does not work with any n-values except 1.
+
