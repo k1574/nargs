@@ -12,17 +12,18 @@ enum{
 
 char *argv0;
 char **cmd;
-char **argbufs;
+int wflag = 0, uflag = 0;
+int memalloced;
 
-int curnarg;
-int narg = 1 ;
+char **bufs;
+int narg = 1, realnarg;
 int ncmd; 
 int bufsiz = StdBufSiz ;
 
 void
 usage(void)
 {
-	fprintf(stderr, "usage: %s [-n narg] <cmd>\n", argv0);
+	fprintf(stderr, "usage: %s [-n narg] [-u] [-w] <cmd>\n", argv0);
 	exit(1);
 }
 
@@ -37,29 +38,37 @@ strchp(char *s, char c)
 void
 exe(void)
 {
-	int i, arglen = ncmd+curnarg ;
+	int i, arglen = ncmd+realnarg ;
 	char **arg = malloc(sizeof(char*)*(arglen+1)) ;	
 
 	for(i=0 ; i<ncmd ; ++i)
 		arg[i] = cmd[i] ;
 	for(; i<arglen ; ++i)
-		arg[i] = argbufs[i-curnarg] ;
+		arg[i] = bufs[i-ncmd] ;
 	arg[i] = 0 ;
 
+	/*for(i = 0 ; i<arglen ; ++i)
+		printf("%x = '%s' %d\n", arg[i], arg[i], realnarg);*/
 	execvp(arg[0], arg);
 
+	/* Not reachable? */
 	free(arg);
 }
 
 int
 main(int argc, char *argv[])
 {
-	int i, pid;
-	int status;
+	int i, pid, run, status;
+	
 	argv0 = argv[0] ;
 	ARGBEGIN {
 	case 'n' :
 		narg = atoi(EARGF(usage())) ;
+	break;
+	case 'w' :
+		wflag = 1 ;
+	case 'u' :
+		uflag = 1 ;
 	break;
 	default:
 		usage();
@@ -69,25 +78,29 @@ main(int argc, char *argv[])
 
 	cmd =  argv ;
 	ncmd = argc ;
-	argbufs = malloc(sizeof(*argbufs)*narg) ;
-	for(i=0 ; i<narg ; ++i)
-		argbufs[i] = malloc(bufsiz) ;
 
-	while(1){
+	bufs = malloc(sizeof(char *)*narg) ;
+	for(i=0 ; i<narg ; ++i)
+		bufs[i] = malloc(bufsiz) ;
+
+	run = 1 ;
+	while(run){
 		for(i=0 ; i<narg ; ++i){
-			if(!fgets(argbufs[i], bufsiz, stdin))
+			if(!fgets(bufs[i], bufsiz, stdin)){
+				run = 0 ;
 				break ;
-			curnarg = i+1 ;
-			strchp(argbufs[i], '\n');
+			}
+			strchp(bufs[i], '\n');
 		}
-		pid = fork() ;
-		if(!pid){
+		realnarg = run ? narg : i ;
+		if(!(pid = fork()))
 			exe();
-		} else {
-			waitpid(pid, &status, 0);
-		}
+		else if(!wflag)
+				waitpid(pid, &status, 0);
 	}
 
-thread_success:
+	
+	if(wflag) while(wait(&status) > 0) ;
+
 	return 0 ;
 }
