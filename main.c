@@ -69,6 +69,7 @@ main(int argc, char *argv[])
 		wflag = 1 ;
 	case 'u' :
 		uflag = 1 ;
+		setvbuf(stdin, 0, _IONBF, 0);
 	break;
 	default:
 		usage();
@@ -88,11 +89,18 @@ main(int argc, char *argv[])
 		for(i=0 ; i<narg ; ++i){
 			if(!fgets(bufs[i], bufsiz, stdin)){
 				run = 0 ;
+				/* Prevent from using last newline as argument. */
+				if(!strcmp(bufs[i], "\n")){
+					--i;
+				}
 				break ;
 			}
 			strchp(bufs[i], '\n');
 		}
+
 		realnarg = run ? narg : i ;
+		if(!realnarg) continue ;
+
 		if(!(pid = fork()))
 			exe();
 		else if(!wflag)
